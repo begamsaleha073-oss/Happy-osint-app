@@ -1,0 +1,17 @@
+{
+  "name": "cyber-lookup",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Cyber Phone & Vehicle Info Lookup",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "vercel dev",
+    "build": "vercel build"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  },
+  "author": "YourName",
+  "license": "MIT"
+}
