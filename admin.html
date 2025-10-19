@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin Panel - Cyber Lookup</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000;color:#0ff;font-family:'Share Tech Mono',monospace;text-align:center;padding:20px;}
+input,button{margin:5px;padding:8px;border-radius:6px;border:1px solid #0ff;background:#011;color:#0ff;}
+.container{max-width:600px;margin:auto;}
+.user-list{margin-top:20px;text-align:left;}
+.user-card{border:1px solid #0ff;padding:10px;margin:5px 0;border-radius:8px;}
+.small{font-size:0.9rem;color:#aaffff;}
+</style>
+</head>
+<body>
+<div class="container">
+  <h2>🔐 Admin Login</h2>
+  <input id="adminUser" placeholder="Username"><br>
+  <input id="adminPass" type="password" placeholder="Password"><br>
+  <button id="loginBtn">Login</button>
+
+  <div id="panel" style="display:none;">
+    <h3>Pending Approvals</h3>
+    <div id="userList" class="user-list"></div>
+
+    <h3 style="margin-top:20px;">Manage Users</h3>
+    <div id="manageList" class="user-list"></div>
+  </div>
+
+  <p class="small">Admin operations are server-protected. Use Vercel env for ADMIN_USER/ADMIN_PASS.</p>
+</div>
+
+<script>
+const panel=document.getElementById("panel");
+const userList=document.getElementById("userList");
+const manageList=document.getElementById("manageList");
+
+document.getElementById("loginBtn").onclick = async () => {
+  const u = document.getElementById("adminUser").value.trim();
+  const p = document.getElementById("adminPass").value.trim();
+  if(!u||!p) return alert("Fill all fields");
+
+  try {
+    const res = await fetch('/api/adminLogin', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ username: u, password: p })
+    });
+    const j = await res.json();
+    if(res.ok) {
+      panel.style.display = 'block';
+      loadUsers();
+      loadManage();
+    } else {
+      alert(j.error || 'Login failed');
+    }
+  } catch(e) {
+    alert('Network error');
+  }
+};
+
+async function loadUsers(){
+  try {
+    const res = await fetch('/api/adminUsers');
+    const j = await res.json();
+    if(!res.ok) return alert(j.error || 'Error');
+    userList.innerHTML = "";
+    manageList.innerHTML = "";
+    for(const uname in j.users){
+      const u = j.users[uname];
+      if(!u.approved){
+        const card = document.createElement("div");
+        card.className = "user-card";
+        card.innerHTML = `<b>${uname}</b> - TG: ${u.telegramId} <br/>
+          <button onclick="approveUser('${uname}')">Approve (give 10 searches)</button>`;
+        userList.appendChild(card);
+      }
+      // manage view (all users)
+      const mcard = document.createElement("div");
+      mcard.className = "user-card";
+      mcard.innerHTML = `<b>${uname}</b> — approved: ${u.approved} — credits: ${u.credits || 0} 
+      <br/> <input id="credits_${uname}" placeholder="set credits" style="width:120px"/> 
+      <input id="days_${uname}" placeholder="days till expiry" style="width:120px"/>
+      <button onclick="setCredits('${uname}')">Set</button>
+      <button onclick="revoke('${uname')">Revoke</button>
+      `;
+      manageList.appendChild(mcard);
+    }
+  } catch(e) { alert('Network error'); }
+}
+
+window.approveUser = function(username){
+  globalThis.users = globalThis.users || {};
+  if(globalThis.users[username]){
+    globalThis.users[username].approved = true;
+    globalThis.users[username].credits = 10;
+    globalThis.users[username].creditExpiry = Date.now() + 10*24*60*60*1000;
+    loadUsers();
+  } else alert('User not found in memory (serverless env may reset on redeploy)');
+};
+
+window.setCredits = function(username){
+  const c = parseInt(document.getElementById('credits_'+username).value || '0',10);
+  const days = parseInt(document.getElementById('days_'+username).value || '0',10);
+  globalThis.users = globalThis.users || {};
+  if(globalThis.users[username]){
+    globalThis.users[username].credits = isNaN(c)?0:c;
+    globalThis.users[username].creditExpiry = days>0 ? Date.now()+days*24*60*60*1000 : null;
+    loadUsers();
+  } else alert('User not found');
+};
+
+window.revoke = function(username){
+  globalThis.users = globalThis.users || {};
+  if(globalThis.users[username]){
+    globalThis.users[username].approved = false;
+    globalThis.users[username].credits = 0;
+    globalThis.users[username].creditExpiry = null;
+    loadUsers();
+  }
+};
+</script>
+</body>
+</html>
